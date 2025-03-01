@@ -9,22 +9,24 @@ from keras.layers.core import Dense, Dropout, Activation
 
 #TO DO LIST
 ##LVL 1
-###export final data in a ending summary
-###compare performances with each other (statistics and plot)
-###Level 1 is done
+###do one choice per epoch? 
+###softmax function
 
 #CODE STARTS HERE
+##SETTINGS
+model_name = 'AND_model'
+epochs = 150
+
 ##DATA SET
 train_x = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
 test_x = np.copy(train_x)
-
 
 ##MODEL STRUCTURE
 n_input, n_output = train_x.shape[1], 1 
 
 model = Sequential()
 model.add(Dense(
-    units=8, activation='tanh', input_shape=(n_input,)))
+    units=4, activation='tanh', input_shape=(n_input,)))
 model.add(Dense(
     n_output, activation='sigmoid'))
 model.build()
@@ -36,34 +38,31 @@ model.compile(
 
 
 ##Y_DATA SET + FIT
-epochs = 150
+###AND task
+if model_name == 'AND_model': 
+    train_y = np.array([0, 0, 0, 1])
+    train_y = train_y.reshape(4, 1)
+    history = model.fit(train_x, train_y, batch_size = 1, epochs=epochs)
+    loss_history = history.history["loss"]
 
-###AND function
-'''model_name = 'AND_model'
-train_y = np.array([0, 0, 0, 1])
-train_y = train_y.reshape(4, 1)
-history = model.fit(train_x, train_y, batch_size = 1, epochs=epochs)
-loss_history = history.history["loss"]'''
-
-###XOR function
-model_name = 'XOR_model'
-train_y = np.array([0, 1, 1, 0])
-train_y = train_y.reshape(4, 1)
-history = model.fit(train_x, train_y, batch_size = 1, epochs=epochs)
-loss_history = history.history["loss"]
+###XOR task
+elif model_name == 'XOR_model':
+   train_y = np.array([0, 1, 1, 0])
+   train_y = train_y.reshape(4, 1)
+   history = model.fit(train_x, train_y, batch_size = 1, epochs=epochs)
+   loss_history = history.history["loss"]
 
 ###RM loop
-'''model_name = 'RM_model'
-loss_history = []
-accuracy_history = []
+elif model_name == 'RM_model':
+   loss_history = []
+   accuracy_history = []
 
-for epoch in range(epochs):
-    train_y = np.random.randint(0, 2, size=(4, 1))
-    print(f"Epoch {epoch+1}/{epochs}")
-    history = model.fit(train_x, train_y, batch_size = 1, epochs=1, verbose=1)
-    loss_history.append(history.history["loss"][0]) 
-    accuracy_history.append(history.history["accuracy"][0])'''
-
+   for epoch in range(epochs):
+       train_y = np.random.randint(0, 2, size=(4, 1))
+       print(f"Epoch {epoch+1}/{epochs}")
+       history = model.fit(train_x, train_y, batch_size = 1, epochs=1, verbose=1)
+       loss_history.append(history.history["loss"][0]) 
+       accuracy_history.append(history.history["accuracy"][0])
 
 ##GATHER DATA
 ###store data
