@@ -65,13 +65,15 @@ for i in range(n_trials):
     choice_list.append(chosen_task) 
     action_counts[chosen_task] += 1
     
-##running the chosen task 
+##running the chosen task while tracking loss and accuracy
     if chosen_task == 2:
         model_name = 'AND_model'
         train_y_AND = np.array([0, 0, 0, 1])
         train_y_AND = train_y_AND.reshape(4, 1)
         model = model_dict[model_name]
         history = model.fit(train_x, train_y_AND, batch_size = 1, epochs=epochs)
+        loss_history_AND.append(history.history["loss"][0])
+        acc_history_AND.append(history.history["accuracy"][0])
         
     elif chosen_task == 1:
         model_name = 'XOR_model'
@@ -79,23 +81,14 @@ for i in range(n_trials):
         train_y_XOR = train_y_XOR.reshape(4, 1)
         model = model_dict[model_name]
         history = model.fit(train_x, train_y_XOR, batch_size = 1, epochs=epochs)
+        loss_history_XOR.append(history.history["loss"][0])
+        acc_history_XOR.append(history.history["accuracy"][0])
         
     elif chosen_task == 0: 
         model_name = 'RM_model'
         train_y_RM = np.random.randint(0, 2, size=(4, 1))
         model = model_dict[model_name]
         history = model.fit(train_x, train_y_RM, batch_size = 1, epochs=epochs)
-        
-##tracking loss and accuracy
-    if chosen_task == 2:
-        loss_history_AND.append(history.history["loss"][0])
-        acc_history_AND.append(history.history["accuracy"][0])
-        
-    elif chosen_task == 1:
-        loss_history_XOR.append(history.history["loss"][0])
-        acc_history_XOR.append(history.history["accuracy"][0])
-        
-    elif chosen_task == 0:
         loss_history_RM.append(history.history["loss"][0])
         acc_history_RM.append(history.history["accuracy"][0])
         
