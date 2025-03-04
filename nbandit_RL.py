@@ -39,17 +39,9 @@ print("mean reward: {:.2f}".format(np.mean(reward_list)))
 window_conv = 20
 avg_choices = np.convolve(choice_list, np.ones(window_conv)/window_conv, mode = 'valid')
 avg_reward = np.convolve(reward_list, np.ones(window_conv)/window_conv, mode = 'valid')
-x_values = np.arange(len(avg_choices))
-slope_choices, intercept_choices = np.polyfit(x_values, avg_choices, 1)
-slope_rewards, intercept_rewards = np.polyfit(x_values, avg_reward, 1)
-trend_choices = slope_choices * x_values + intercept_choices
-trend_rewards = slope_rewards * x_values + intercept_rewards
-
 fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(avg_reward *3, color='blue', alpha = 0.3)
-ax.plot(avg_choices, color='black', alpha = 0.5)
-ax.plot(trend_choices, color='black', linestyle="dashed")
-ax.plot(trend_rewards *3, color='blue', linestyle="dashed")
+ax.plot(avg_reward *3, color='blue', alpha = 0.5)
+ax.plot(avg_choices, color='black', alpha = 0.7)
 ax.set_xlabel("n_trial")
 ax.set_ylabel("choice")
 ax.set_yticks(range(len(p)))
