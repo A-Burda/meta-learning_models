@@ -50,6 +50,9 @@ for model in model_dict.values():
 data = pd.DataFrame()
 action_list = list(range(3))
 action_counts = {action: 0 for action in action_list}
+previous_AND_accuracy = None
+previous_XOR_accuracy = None
+previous_RM_accuracy = None
 
 ##action choice
 for i in range(n_trials):
@@ -69,20 +72,30 @@ for i in range(n_trials):
     data.loc[i, 'chosen_task'] = chosen_task 
     action_counts[chosen_task] += 1
     
-##running the chosen task
+##running the chosen task and retrieving previous accuracy
     if chosen_task == 2:
         model_name = 'AND_model'
         model = model_dict[model_name]
+        if previous_AND_accuracy is not None:
+            previous_accuracy = previous_AND_accuracy
+        else: previous_accuracy = 0
+           
         history = model.fit(train_x, train_y_AND, batch_size = 1, epochs=epochs)
         
     elif chosen_task == 1:
         model_name = 'XOR_model'
         model = model_dict[model_name]
+        if previous_XOR_accuracy is not None:
+            previous_accuracy = previous_XOR_accuracy
+        else: previous_accuracy = 0
         history = model.fit(train_x, train_y_XOR, batch_size = 1, epochs=epochs)
         
     elif chosen_task == 0: 
         model_name = 'RM_model'
         model = model_dict[model_name]
+        if previous_RM_accuracy is not None:
+            previous_accuracy = previous_RM_accuracy
+        else: previous_accuracy = 0
         history = model.fit(train_x, train_y_RM, batch_size = 1, epochs=epochs)    
     
 ##record data
@@ -97,29 +110,24 @@ for i in range(n_trials):
     test_results_RM = model_dict['RM_model'].evaluate(train_x, train_y_RM)
     data.loc[i, 'loss_RM'] = test_results_RM[0]
     data.loc[i, 'acc_RM'] = test_results_RM[1]
-    
-##calculate learning progress
-    if chosen_task == 2: 
-        if len(data) > 1:
-            previous_accuracy = data['acc_AND'].iloc[-2]
-        else: previous_accuracy = 0
-        
-    elif chosen_task == 1: 
-        if len(data) > 1:
-            previous_accuracy = data['acc_XOR'].iloc[-2]
-        else: previous_accuracy = 0
-        
-    elif chosen_task == 0:
-        if len(data) > 1:
-            previous_accuracy = data['acc_RM'].iloc[-2]
-        else: previous_accuracy = 0
         
 ##learning update
     trial_accuracy = history.history["binary_accuracy"][0]
     reward = abs(previous_accuracy - trial_accuracy) #the reward is learning progress
     data.loc[i, 'reward'] = reward
     w[chosen_task] += alpha*(reward - w[chosen_task]) #Rescorla-Wagner learning rule
-    print(data['reward'].iloc[-1])
+    print(data['reward'].iloc[-1])   
+    
+##record accuracy for the chosen task
+    if chosen_task == 2: 
+        previous_AND_accuracy = trial_accuracy
+        
+    elif chosen_task == 1: 
+        previous_XOR_accuracy = trial_accuracy
+      
+    elif chosen_task == 0:
+        previous_RM_accuracy = trial_accuracy
+
 
 ##GATHER DATA
 ##test the models
