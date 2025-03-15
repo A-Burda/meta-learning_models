@@ -50,9 +50,8 @@ for model in model_dict.values():
 data = pd.DataFrame()
 action_list = list(range(3))
 action_counts = {action: 0 for action in action_list}
-previous_AND_accuracy = None
-previous_XOR_accuracy = None
-previous_RM_accuracy = None
+accuracy_history = {0: [], 1: [], 2: []}
+window_size = 5
 
 ##action choice
 for i in range(n_trials):
@@ -76,26 +75,16 @@ for i in range(n_trials):
     if chosen_task == 2:
         model_name = 'AND_model'
         model = model_dict[model_name]
-        if previous_AND_accuracy is not None:
-            previous_accuracy = previous_AND_accuracy
-        else: previous_accuracy = 0
-           
         history = model.fit(train_x, train_y_AND, batch_size = 1, epochs=epochs)
         
     elif chosen_task == 1:
         model_name = 'XOR_model'
         model = model_dict[model_name]
-        if previous_XOR_accuracy is not None:
-            previous_accuracy = previous_XOR_accuracy
-        else: previous_accuracy = 0
         history = model.fit(train_x, train_y_XOR, batch_size = 1, epochs=epochs)
         
     elif chosen_task == 0: 
         model_name = 'RM_model'
         model = model_dict[model_name]
-        if previous_RM_accuracy is not None:
-            previous_accuracy = previous_RM_accuracy
-        else: previous_accuracy = 0
         history = model.fit(train_x, train_y_RM, batch_size = 1, epochs=epochs)    
     
 ##record data
@@ -111,9 +100,18 @@ for i in range(n_trials):
     data.loc[i, 'loss_RM'] = test_results_RM[0]
     data.loc[i, 'acc_RM'] = test_results_RM[1]
         
-##learning update
+##averaging previous accuracies
     trial_accuracy = history.history["binary_accuracy"][0]
-    reward = abs(previous_accuracy - trial_accuracy) #the reward is learning progress
+    accuracy_history[chosen_task].append(trial_accuracy)
+    if len(accuracy_history[chosen_task]) > window_size:
+       accuracy_history[chosen_task].pop(0)
+       
+    if len(accuracy_history[chosen_task]) > 1:
+       reward = abs(np.mean(np.diff(accuracy_history[chosen_task])))  #reward is the mean progress
+    else:
+       reward = 0
+
+##learning update
     data.loc[i, 'reward'] = reward
     w[chosen_task] += alpha*(reward - w[chosen_task]) #Rescorla-Wagner learning rule
     print(data['reward'].iloc[-1])   
@@ -150,48 +148,60 @@ print(f"Model name: XOR Model, Loss: {test_results_XOR[0]:.4f}, Accuracy: {test_
 print(f"Model name: RM Model, Loss: {test_results_RM[0]:.4f}, Accuracy: {test_results_RM[1]:.4f}")
 
 ##plots
+window_conv = 5
+
+###action probability over time
+avg_RM_prob = np.convolve(data['prob_RM'], np.ones(window_conv)/window_conv, mode = 'valid')
+avg_XOR_prob = np.convolve(data['prob_XOR'], np.ones(window_conv)/window_conv, mode = 'valid')
+avg_AND_prob = np.convolve(data['prob_AND'], np.ones(window_conv)/window_conv, mode = 'valid')
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.set_title("Choice Probabilities over Time")
+ax.plot(avg_RM_prob, color='red', label = "RM")
+ax.plot(avg_XOR_prob, color='green', label = "XOR")
+ax.plot(avg_AND_prob, color='blue', label = "AND")
+ax.set_xlabel("trial")
+ax.set_ylabel("choice probability")
+ax.legend()
+plt.show()
+plt.close(fig)
+
 ###accuracy over time 
 data['mean_acc'] = data.loc[:, ['acc_AND', 'acc_XOR', 'acc_RM']].mean(axis=1)
 
 fig, ax = plt.subplots(figsize=(10, 5))
+avg_RM_acc = np.convolve(data['acc_RM'], np.ones(window_conv)/window_conv, mode = 'valid')
+avg_XOR_acc = np.convolve(data['acc_XOR'], np.ones(window_conv)/window_conv, mode = 'valid')
+avg_AND_acc = np.convolve(data['acc_AND'], np.ones(window_conv)/window_conv, mode = 'valid')
+avg_mean_acc = np.convolve(data['mean_acc'], np.ones(window_conv)/window_conv, mode = 'valid')
 ax.set_title("Comparison of Accuracy over Time for Each Model")
-ax.plot(data['trial'], data['acc_AND'], color = "blue", label = "AND")
-ax.plot(data['trial'], data['acc_XOR'], color = "green", label = "XOR")
-ax.plot(data['trial'], data['acc_RM'], color = "red", label = "RM")
-ax.plot(data['trial'], data['mean_acc'], color="orange", linestyle='--', label='All')
+ax.plot(avg_AND_acc, color = "blue", label = "AND")
+ax.plot(avg_XOR_acc, color = "green", label = "XOR")
+ax.plot(avg_RM_acc, color = "red", label = "RM")
+ax.plot(avg_mean_acc, color="orange", linestyle='--', label='All')
 ax.set_xlabel("trial")
 ax.set_ylabel("accuracy")
 ax.legend()
 plt.show()
+plt.close(fig)
 
 ###loss over time
 data['mean_loss'] = data.loc[:, ['loss_AND', 'loss_XOR', 'loss_RM']].mean(axis=1)
  
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.set_title("Comparison of Loss Functions for Each Model")
-ax.plot(data['trial'], data['loss_AND'], color = "blue", label = "AND")
-ax.plot(data['trial'], data['loss_XOR'], color = "green", label = "XOR")
-ax.plot(data['trial'], data['loss_RM'], color = "red", label = "RM")
-ax.plot(data['trial'], data['mean_loss'], color="orange", linestyle='--', label='All')
+avg_RM_loss = np.convolve(data['loss_RM'], np.ones(window_conv)/window_conv, mode = 'valid')
+avg_XOR_loss = np.convolve(data['loss_XOR'], np.ones(window_conv)/window_conv, mode = 'valid')
+avg_AND_loss = np.convolve(data['loss_AND'], np.ones(window_conv)/window_conv, mode = 'valid')
+avg_mean_loss = np.convolve(data['mean_loss'], np.ones(window_conv)/window_conv, mode = 'valid')
+ax.plot(avg_AND_loss, color = "blue", label = "AND")
+ax.plot(avg_XOR_loss, color = "green", label = "XOR")
+ax.plot(avg_RM_loss, color = "red", label = "RM")
+ax.plot(avg_mean_loss, color="orange", linestyle='--', label='All')
 ax.set_xlabel("trial")
 ax.set_ylabel("loss")
 ax.legend()
 plt.show()
-
-###action probability over time
-window_conv = 5
-avg_RM = np.convolve(data['prob_RM'], np.ones(window_conv)/window_conv, mode = 'valid')
-avg_XOR = np.convolve(data['prob_XOR'], np.ones(window_conv)/window_conv, mode = 'valid')
-avg_AND = np.convolve(data['prob_AND'], np.ones(window_conv)/window_conv, mode = 'valid')
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.set_title("Choice Probabilities over Time")
-ax.plot(avg_RM, color='red', label = "RM")
-ax.plot(avg_XOR, color='green', label = "XOR")
-ax.plot(avg_AND, color='blue', label = "AND")
-ax.set_xlabel("trial")
-ax.set_ylabel("choice probability")
-ax.legend()
-plt.show()
+plt.close(fig)
 
 ###save the model
 '''model.save("D:/ULB/MA2/STAGE2/code/internship_curriculum_model")'''
