@@ -47,7 +47,7 @@ train_y_XOR = np.array([0, 1, 1, 0]).reshape(4, 1)
 
 #MODEL STRUCTURE
 model = Sequential([
-    Dense(4, activation='tanh', input_shape=(5,)),
+    Dense(8, activation='tanh', input_shape=(5,)),
     Dense(1, activation='sigmoid')
     ])
 
