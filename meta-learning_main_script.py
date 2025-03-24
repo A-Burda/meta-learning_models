@@ -8,6 +8,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense
 
 #PARAMETERS
+tested_model = 'model_LVL2_LP_signed'
 n_trials = 300
 model_runs = 10
 epochs = 1
@@ -144,13 +145,32 @@ for run in range(model_runs):
             trial_loss = data['loss_AND'].iloc[-1]
 
         loss_history[chosen_task].append(trial_loss)
-        if len(loss_history[chosen_task]) > window_size:
-           loss_history[chosen_task].pop(0)
-           
-        if len(loss_history[chosen_task]) > 1:
-           reward = -(np.mean(np.diff(loss_history[chosen_task])))  #reward is the mean progress
-        else:
-           reward = 0
+        
+        ##Choosing the reward signal based on the model        
+        if tested_model == 'model_LVL2_LP_signed': 
+            if len(loss_history[chosen_task]) > window_size:
+                loss_history[chosen_task].pop(0)
+                       
+            if len(loss_history[chosen_task]) > 1:
+                reward = -(np.mean(np.diff(loss_history[chosen_task])))  #reward is the mean progress
+            else:
+                reward = 0
+
+        if tested_model == 'model_LVL2_unsigned':
+            if len(loss_history[chosen_task]) > window_size:
+                loss_history[chosen_task].pop(0)
+                       
+            if len(loss_history[chosen_task]) > 1:
+                reward = -(np.mean(np.diff(loss_history[chosen_task])))  #reward is the mean progress
+            else:
+                reward = 0
+                
+        if tested_model == 'model_LVL2_acc': 
+            reward = -(trial_loss) #reward is accuracy
+         
+    #if the task does random sampling, reward doesn't matter
+        else: 
+            reward = 0 
 
     ##learning update
         data.loc[index, 'reward'] = reward
