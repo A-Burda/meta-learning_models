@@ -10,7 +10,7 @@ from keras.layers.core import Dense
 #PARAMETERS
 tested_model = 'model_LVL2_acc' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned'
 n_trials = 300
-model_runs = 15
+model_runs = 1
 epochs = 1
 alpha = 0.3 #learning rate
 beta = 2 #reverse temperature
@@ -35,9 +35,8 @@ context_vector_AND = np.array([1, 0, 0])
 context_vector_AND = np.tile(context_vector_AND, (4, 1))
 
 #STATIC Y DATA
-train_y_AND_base = np.array([0, 0, 0, 1]).reshape(4, 1)
+train_y_AND = np.array([0, 0, 0, 1]).reshape(4, 1)
 train_y_XOR_base = np.array([0, 1, 1, 0]).reshape(4, 1)
-train_y_AND_rev = np.array([1, 0, 0, 0]).reshape(4, 1)
 train_y_XOR_rev = np.array([1, 0, 0, 1]).reshape(4, 1)
 
 #FUCTIONS 
@@ -49,21 +48,21 @@ def reverse_x_data():
     rev_inputs = np.random.randint(0, 2)
     rev_array = np.tile(rev_inputs, (4, 1))
     
+    stable_array = np.tile(1, (4, 1))
+    
     train_x_RM = np.hstack([x_inputs, rev_array, context_vector_RM]) 
     test_x_RM = np.copy(train_x_RM)
     
     train_x_XOR = np.hstack([x_inputs, rev_array, context_vector_XOR]) 
     test_x_XOR = np.copy(train_x_XOR)
     
-    train_x_AND = np.hstack([x_inputs, rev_array, context_vector_AND]) 
+    train_x_AND = np.hstack([x_inputs, stable_array, context_vector_AND]) 
     test_x_AND = np.copy(train_x_AND)
     
     if rev_inputs == 1: 
-        train_y_AND = train_y_AND_rev
         train_y_XOR = train_y_XOR_rev
         
     if rev_inputs == 0: 
-        train_y_AND = train_y_AND_base
         train_y_XOR = train_y_XOR_base
         
     return train_x_RM, test_x_RM, train_x_XOR, test_x_XOR, train_x_AND, test_x_AND, train_y_AND, train_y_XOR
