@@ -8,9 +8,9 @@ from keras.models import Sequential
 from keras.layers.core import Dense
 
 #PARAMETERS
-tested_model = 'model_LVL2_LP_signed'
+tested_model = 'model_LVL2_acc' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned'
 n_trials = 300
-model_runs = 10
+model_runs = 15
 epochs = 1
 alpha = 0.3 #learning rate
 beta = 2 #reverse temperature
@@ -26,31 +26,47 @@ x_inputs = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
 context_vector_RM = np.array([0, 0, 1])
 context_vector_RM = np.tile(context_vector_RM, (4, 1))
 
-train_x_RM = np.hstack([x_inputs, context_vector_RM]) 
-test_x_RM = np.copy(train_x_RM)
-
 ##XOR context
 context_vector_XOR = np.array([0, 1, 0])
 context_vector_XOR = np.tile(context_vector_XOR, (4, 1))
-
-train_x_XOR = np.hstack([x_inputs, context_vector_XOR]) 
-test_x_XOR = np.copy(train_x_XOR)
 
 ##AND context
 context_vector_AND = np.array([1, 0, 0])
 context_vector_AND = np.tile(context_vector_AND, (4, 1))
 
-train_x_AND = np.hstack([x_inputs, context_vector_AND]) 
-test_x_AND = np.copy(train_x_AND)
-
 #STATIC Y DATA
-train_y_AND = np.array([0, 0, 0, 1]).reshape(4, 1)
-train_y_XOR = np.array([0, 1, 1, 0]).reshape(4, 1)
+train_y_AND_base = np.array([0, 0, 0, 1]).reshape(4, 1)
+train_y_XOR_base = np.array([0, 1, 1, 0]).reshape(4, 1)
+train_y_AND_rev = np.array([1, 0, 0, 0]).reshape(4, 1)
+train_y_XOR_rev = np.array([1, 0, 0, 1]).reshape(4, 1)
 
 #FUCTIONS 
 #random Y data for RM
 def random_y_data(): 
     return np.random.randint(0, 2, size=(4, 1))
+
+def reverse_x_data(): 
+    rev_inputs = np.random.randint(0, 2)
+    rev_array = np.tile(rev_inputs, (4, 1))
+    
+    train_x_RM = np.hstack([x_inputs, rev_array, context_vector_RM]) 
+    test_x_RM = np.copy(train_x_RM)
+    
+    train_x_XOR = np.hstack([x_inputs, rev_array, context_vector_XOR]) 
+    test_x_XOR = np.copy(train_x_XOR)
+    
+    train_x_AND = np.hstack([x_inputs, rev_array, context_vector_AND]) 
+    test_x_AND = np.copy(train_x_AND)
+    
+    if rev_inputs == 1: 
+        train_y_AND = train_y_AND_rev
+        train_y_XOR = train_y_XOR_rev
+        
+    if rev_inputs == 0: 
+        train_y_AND = train_y_AND_base
+        train_y_XOR = train_y_XOR_base
+        
+    return train_x_RM, test_x_RM, train_x_XOR, test_x_XOR, train_x_AND, test_x_AND, train_y_AND, train_y_XOR
 
 ##tracking loss and accuracy
 def learning_track():
@@ -83,7 +99,7 @@ for run in range(model_runs):
     
     #MODEL STRUCTURE
     model = Sequential([
-        Dense(8, activation='tanh', input_shape=(5,)),
+        Dense(8, activation='tanh', input_shape=(6,)),
         Dense(1, activation='sigmoid')
         ])
 
@@ -106,8 +122,9 @@ for run in range(model_runs):
         data.loc[index, 'trial'] = trial
         print("trial number:", data.loc[index, 'trial'])
          
-        #changeable y_data
+        #changeable data
         train_y_RM = random_y_data()
+        train_x_RM, test_x_RM, train_x_XOR, test_x_XOR, train_x_AND, test_x_AND, train_y_AND, train_y_XOR = reverse_x_data()
         
         #make a choice (softmax function)
         prob = np.exp(beta*w)/np.sum(np.exp(beta*w))
