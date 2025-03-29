@@ -177,8 +177,6 @@ for run in range(model_runs):
             else:
                 if len(loss_history[chosen_task]) > 1:
                     reward = -(np.mean(np.diff(loss_history[chosen_task])))
-                    reward = reward / (1 + reward)  
-                    reward *= 10
                     
                 else: 
                     reward = 0
