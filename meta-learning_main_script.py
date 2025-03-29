@@ -8,15 +8,15 @@ from keras.models import Sequential
 from keras.layers.core import Dense
 
 #PARAMETERS
-tested_model = 'model_LVL2_acc' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned'
+tested_model = 'model_LVL2_LP_signed' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned', 'model_LVL2_novelty'
 n_trials = 300
-model_runs = 1
+model_runs = 5
 epochs = 1
 alpha = 0.3 #learning rate
 beta = 2 #reverse temperature
 w = np.array([1/3, 1/3, 1/3])
 #np.random.random(3) #weights
-window_size = 25
+window_size = 15
 
 #X DATA
 ##data set
@@ -34,6 +34,11 @@ context_vector_XOR = np.tile(context_vector_XOR, (4, 1))
 context_vector_AND = np.array([1, 0, 0])
 context_vector_AND = np.tile(context_vector_AND, (4, 1))
 
+#STATIC X DATA
+stable_array = np.tile(1, (4, 1))
+train_x_AND = np.hstack([x_inputs, stable_array, context_vector_AND]) 
+test_x_AND = np.copy(train_x_AND)
+
 #STATIC Y DATA
 train_y_AND = np.array([0, 0, 0, 1]).reshape(4, 1)
 train_y_XOR_base = np.array([0, 1, 1, 0]).reshape(4, 1)
@@ -48,17 +53,12 @@ def reverse_x_data():
     rev_inputs = np.random.randint(0, 2)
     rev_array = np.tile(rev_inputs, (4, 1))
     
-    stable_array = np.tile(1, (4, 1))
-    
     train_x_RM = np.hstack([x_inputs, rev_array, context_vector_RM]) 
     test_x_RM = np.copy(train_x_RM)
     
     train_x_XOR = np.hstack([x_inputs, rev_array, context_vector_XOR]) 
     test_x_XOR = np.copy(train_x_XOR)
-    
-    train_x_AND = np.hstack([x_inputs, stable_array, context_vector_AND]) 
-    test_x_AND = np.copy(train_x_AND)
-    
+      
     if rev_inputs == 1: 
         train_y_XOR = train_y_XOR_rev
         
@@ -167,31 +167,54 @@ for run in range(model_runs):
             if len(loss_history[chosen_task]) > window_size:
                 loss_history[chosen_task].pop(0)
                        
-            if len(loss_history[chosen_task]) > 1:
-                reward = -(np.mean(np.diff(loss_history[chosen_task])))  #reward is the mean progress
+            if len(loss_history[chosen_task]) == window_size:
+                half1 = np.mean(loss_history[chosen_task][-15: -5])
+                half2 = np.mean(loss_history[chosen_task][-9:])
+                
+                reward = abs(half1 - half2)
+                reward *= 10   #reward is the mean progress
+            
             else:
-                reward = 0
+                if len(loss_history[chosen_task]) > 1:
+                    reward = -(np.mean(np.diff(loss_history[chosen_task])))
+                    reward = reward / (1 + reward)  
+                    reward *= 10
+                    
+                else: 
+                    reward = 0
 
-        if tested_model == 'model_LVL2_unsigned':
+        if tested_model == 'model_LVL2_LP_unsigned':
             if len(loss_history[chosen_task]) > window_size:
                 loss_history[chosen_task].pop(0)
                        
-            if len(loss_history[chosen_task]) > 1:
-                reward = -(np.mean(np.diff(loss_history[chosen_task])))  #reward is the mean progress
-            else:
-                reward = 0
+            if len(loss_history[chosen_task]) == window_size:
+                half1 = np.mean(loss_history[chosen_task][-15: -5])
+                half2 = np.mean(loss_history[chosen_task][-9:])
+                
+                reward = abs(half1 - half2)  #reward is the mean progress
+
+            else: 
+                if len(loss_history[chosen_task]) > 1:
+                    reward = abs(np.mean(np.diff(loss_history[chosen_task])))
+                    
+                else: 
+                    reward = 0                    
                 
         if tested_model == 'model_LVL2_acc': 
             reward = -(trial_loss) #reward is accuracy
+            
+        if tested_model == 'model_LVL2_novelty': 
+            total_count = sum(action_counts.values())
+            reward = -(action_counts[chosen_task]/total_count)
          
     #if the task does random sampling, reward doesn't matter
         else: 
             reward = 0 
 
     ##learning update
+        print(reward)
         data.loc[index, 'reward'] = reward
         w[chosen_task] += alpha*(reward - w[chosen_task]) #Rescorla-Wagner learning rule
-        print(data['reward'].iloc[-1]) 
         
     ##GATHER DATA
     ##test the models
@@ -261,7 +284,7 @@ ax.fill_between(trials, avg_AND_acc - 1.96 * std_AND_acc, avg_AND_acc + 1.96 * s
 ax.plot(avg_XOR_acc, color = "green", label = "XOR")
 ax.fill_between(trials, avg_XOR_acc - 1.96 * std_XOR_acc, avg_XOR_acc + 1.96 * std_XOR_acc, color='green', alpha=0.2)
 ax.plot(avg_RM_acc, color = "red", label = "RM")
-ax.fill_between(trials, avg_RM_acc - 1.96 * std_RM_acc, avg_RM_acc + 1.96 * std_RM_acc, color='red', alpha=0.2)
+ax.fill_between(trials, avg_RM_acc - 1.96 * std_RM_acc, avg_RM_acc + 1.96 * std_RM_acc, color='red', alpha=0.1)
 ax.plot(avg_mean_acc, color="orange", linestyle='--', label='All')
 ax.set_xlabel("trial")
 ax.set_ylabel("accuracy")
@@ -287,7 +310,7 @@ ax.fill_between(trials, avg_AND_loss - 1.96 * std_AND_loss, avg_AND_loss + 1.96 
 ax.plot(avg_XOR_loss, color = "green", label = "XOR")
 ax.fill_between(trials, avg_XOR_loss - 1.96 * std_XOR_loss, avg_XOR_loss + 1.96 * std_XOR_loss, color='green', alpha=0.2)
 ax.plot(avg_RM_loss, color = "red", label = "RM")
-ax.fill_between(trials, avg_RM_loss - 1.96 * std_RM_loss, avg_RM_loss + 1.96 * std_RM_loss, color='red', alpha=0.2)
+ax.fill_between(trials, avg_RM_loss - 1.96 * std_RM_loss, avg_RM_loss + 1.96 * std_RM_loss, color='red', alpha=0.1)
 ax.plot(avg_mean_loss, color="orange", linestyle='--', label='All')
 ax.set_xlabel("trial")
 ax.set_ylabel("loss")
