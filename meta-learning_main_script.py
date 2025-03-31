@@ -14,9 +14,8 @@ model_runs = 5
 epochs = 1
 alpha = 0.3 #learning rate
 beta = 2 #reverse temperature
-w = np.array([1/3, 1/3, 1/3])
-#np.random.random(3) #weights
-window_size = 15
+w = np.array([1/3, 1/3, 1/3]) #equal weights
+window_size = 20
 
 #X DATA
 ##data set
@@ -166,13 +165,13 @@ for run in range(model_runs):
         if tested_model == 'model_LVL2_LP_signed': 
             if len(loss_history[chosen_task]) > window_size:
                 loss_history[chosen_task].pop(0)
+                
                        
             if len(loss_history[chosen_task]) == window_size:
-                half1 = np.mean(loss_history[chosen_task][-15: -5])
+                half1 = np.mean(loss_history[chosen_task][-20: -10])
                 half2 = np.mean(loss_history[chosen_task][-9:])
                 
-                reward = abs(half1 - half2)
-                reward *= 10   #reward is the mean progress
+                reward = -(half1 - half2)   #reward is the mean progress
             
             else:
                 if len(loss_history[chosen_task]) > 1:
@@ -181,12 +180,12 @@ for run in range(model_runs):
                 else: 
                     reward = 0
 
-        if tested_model == 'model_LVL2_LP_unsigned':
+        elif tested_model == 'model_LVL2_LP_unsigned':
             if len(loss_history[chosen_task]) > window_size:
                 loss_history[chosen_task].pop(0)
                        
             if len(loss_history[chosen_task]) == window_size:
-                half1 = np.mean(loss_history[chosen_task][-15: -5])
+                half1 = np.mean(loss_history[chosen_task][-20: -10])
                 half2 = np.mean(loss_history[chosen_task][-9:])
                 
                 reward = abs(half1 - half2)  #reward is the mean progress
@@ -198,16 +197,12 @@ for run in range(model_runs):
                 else: 
                     reward = 0                    
                 
-        if tested_model == 'model_LVL2_acc': 
+        elif tested_model == 'model_LVL2_acc': 
             reward = -(trial_loss) #reward is accuracy
             
-        if tested_model == 'model_LVL2_novelty': 
+        elif tested_model == 'model_LVL2_novelty': 
             total_count = sum(action_counts.values())
-            reward = -(action_counts[chosen_task]/total_count)
-         
-    #if the task does random sampling, reward doesn't matter
-        else: 
-            reward = 0 
+            reward = -(action_counts[chosen_task]/total_count) 
 
     ##learning update
         print(reward)
