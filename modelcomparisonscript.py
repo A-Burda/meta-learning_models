@@ -178,7 +178,7 @@ def model_train_loop():
                 reward = -(trial_loss) #reward is accuracy
              
         #if the task does random sampling, reward doesn't matter
-            else: 
+            if tested_model == 'random_sampling_model' 
                 reward = 0         
 
         ##learning update
