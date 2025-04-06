@@ -7,76 +7,101 @@ import matplotlib.pyplot as plt
 from keras.models import Sequential
 from keras.layers.core import Dense
 
+
 #PARAMETERS
-tested_model = 'model_LVL2_LP_signed' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned', 'model_LVL2_novelty'
-n_trials = 300
-model_runs = 5
+tested_model = 'model_LVL2_acc' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned', 'model_LVL2_novelty'
+n_trials = 900
+model_runs = 15
 epochs = 1
-alpha = 0.3 #learning rate
-beta = 2 #reverse temperature
-w = np.array([1/3, 1/3, 1/3]) #equal weights
-window_size = 20
+alpha = 0.1 #learning rate
+beta = 1.5 #reverse temperature
+w = np.array([1/3, 1/3, 1/3]) #initialise weights
+window_size = 60
 
 #X DATA
-##data set
-x_inputs = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+##set data
+x_inputs =  np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+context_vector = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]])
 
-##RM context
-context_vector_RM = np.array([0, 0, 1])
-context_vector_RM = np.tile(context_vector_RM, (4, 1))
+##apply data into a shaped array
+def apply_x_parameters(flip_index, context_index):
+    
+    applied_x_parameters = np.concatenate([
+        x_inputs,
+        np.full((4, 1), flip_index),
+        np.tile(context_vector[context_index], (4, 1))
+    ], axis=1)
+    
+    return applied_x_parameters
 
-##XOR context
-context_vector_XOR = np.array([0, 1, 0])
-context_vector_XOR = np.tile(context_vector_XOR, (4, 1))
+##initialise the lists for all tasks
+train_x = {}
+test_x = {}
 
-##AND context
-context_vector_AND = np.array([1, 0, 0])
-context_vector_AND = np.tile(context_vector_AND, (4, 1))
+##task parameters
+task_x_parameters = {
+    'AND': (1, 2),  
+    'RM': (0, 0),
+    0: (0, 1), #base XOR
+    1: (1, 1), #flipped XOR
+    #XOR choice (base/flipped) will be determined every trial through get_flip()
+}
 
-#STATIC X DATA
-stable_array = np.tile(1, (4, 1))
-train_x_AND = np.hstack([x_inputs, stable_array, context_vector_AND]) 
-test_x_AND = np.copy(train_x_AND)
-
-#STATIC Y DATA
-train_y_AND = np.array([0, 0, 0, 1]).reshape(4, 1)
-train_y_XOR_base = np.array([0, 1, 1, 0]).reshape(4, 1)
-train_y_XOR_rev = np.array([1, 0, 0, 1]).reshape(4, 1)
-
-#FUCTIONS 
-#random Y data for RM
-def random_y_data(): 
+##apply the data to each task's specific parameters
+for task, (flip, context) in task_x_parameters.items():
+    train_x[task] = apply_x_parameters(flip, context)
+    #note: the flip only really matters for XOR, it's constant for RM and AND   
+    
+#Y DATA
+##RM (is random)
+def RM_y_data(): 
     return np.random.randint(0, 2, size=(4, 1))
 
-def reverse_x_data(): 
-    rev_inputs = np.random.randint(0, 2)
-    rev_array = np.tile(rev_inputs, (4, 1))
+##XOR (is it flipped?)
+train_y = {
+    'AND': np.array([0, 0, 0, 1]).reshape(4, 1),
+    0: np.array([0, 1, 1, 0]).reshape(4, 1), #basic
+    1: np.array([1, 0, 0, 1]).reshape(4, 1) #flipped
+    #XOR choice (base/flipped) is determined every trial through get_flip()
+    #RM will be randomised every trial through RM_y_data()
+    }
+
+def get_flip(): 
+    flip_status = np.random.randint(0, 2)
+    train_y['XOR'] = train_y[flip_status]
+    train_x['XOR'] = train_x[flip_status]
     
-    train_x_RM = np.hstack([x_inputs, rev_array, context_vector_RM]) 
-    test_x_RM = np.copy(train_x_RM)
+    return train_y['XOR'], train_x['XOR']
+
+#PICK 1 ROW PER TRIAL
+def extract_1_row(): 
+    train_x_trial = train_x.copy()
+    train_y_trial = train_y.copy()
     
-    train_x_XOR = np.hstack([x_inputs, rev_array, context_vector_XOR]) 
-    test_x_XOR = np.copy(train_x_XOR)
-      
-    if rev_inputs == 1: 
-        train_y_XOR = train_y_XOR_rev
+    random_rows = {task: np.random.randint(0, 4) for task in train_x.keys()}
+    
+    for task, data in train_y_trial.items():
+        row = random_rows[task]
+        train_y_trial[task] = data[row].reshape(1, 1)
         
-    if rev_inputs == 0: 
-        train_y_XOR = train_y_XOR_base
-        
-    return train_x_RM, test_x_RM, train_x_XOR, test_x_XOR, train_x_AND, test_x_AND, train_y_AND, train_y_XOR
+    for task, data in train_x_trial.items(): 
+        row = random_rows[task]
+        train_x_trial[task] = data[row].reshape(1, -1)
+        test_x[task] = np.copy(train_x_trial[task])
+       
+    return train_x_trial, train_y_trial
 
 ##tracking loss and accuracy
 def learning_track():
-    test_results_RM = model.evaluate(train_x_RM, train_y_RM)
+    test_results_RM = model.evaluate(train_x_trial['RM'], train_y_trial['RM'])
     data.loc[index, 'loss_RM'] = test_results_RM[0]
     data.loc[index, 'acc_RM'] = test_results_RM[1]
 
-    test_results_XOR = model.evaluate(train_x_XOR, train_y_XOR)
+    test_results_XOR = model.evaluate(train_x_trial['XOR'], train_y_trial['XOR'])
     data.loc[index, 'loss_XOR'] = test_results_XOR[0]
     data.loc[index, 'acc_XOR'] = test_results_XOR[1]
         
-    test_results_AND = model.evaluate(train_x_AND, train_y_AND)
+    test_results_AND = model.evaluate(train_x_trial['AND'], train_y_trial['AND'])
     data.loc[index, 'loss_AND'] = test_results_AND[0]
     data.loc[index, 'acc_AND'] = test_results_AND[1]
 
@@ -93,7 +118,8 @@ for run in range(model_runs):
     loop += 1
     action_list = list(range(3))
     action_counts = {action: 0 for action in action_list}
-    loss_history = {0: [], 1: [], 2: []}
+    loss_history = {0: [], 1: [], 2: []} #keep track of the loss for each action when chosen
+    loss_history = {key: [0] * window_size for key in loss_history} #fill the lists with 0's until actual values are given
     
     #MODEL STRUCTURE
     model = Sequential([
@@ -106,9 +132,6 @@ for run in range(model_runs):
         loss = tf.keras.losses.BinaryCrossentropy(),
         metrics = [tf.keras.metrics.BinaryAccuracy()]
         )
-       
-    #record data before training
-    train_y_RM = random_y_data()
 
     #TRIAL LOOP 
     ##action choice
@@ -121,8 +144,11 @@ for run in range(model_runs):
         print("trial number:", data.loc[index, 'trial'])
          
         #changeable data
-        train_y_RM = random_y_data()
-        train_x_RM, test_x_RM, train_x_XOR, test_x_XOR, train_x_AND, test_x_AND, train_y_AND, train_y_XOR = reverse_x_data()
+        train_y['RM'] = RM_y_data()
+        train_y['XOR'], train_x['XOR'] = get_flip() 
+        
+        #extract 1 row for all tasks (to be changed to one row for the chosen task)
+        train_x_trial, train_y_trial = extract_1_row()
         
         #make a choice (softmax function)
         prob = np.exp(beta*w)/np.sum(np.exp(beta*w))
@@ -136,15 +162,15 @@ for run in range(model_runs):
     ##set the context
         if chosen_task == 0:
             task_name = 'RM_task'
-            history = model.fit(train_x_RM, train_y_RM, batch_size = 1, epochs=epochs)
+            history = model.fit(train_x_trial['RM'], train_y_trial['RM'], batch_size = 1, epochs=epochs)
 
         elif chosen_task == 1: 
             task_name = 'XOR_task'
-            history = model.fit(train_x_XOR, train_y_XOR, batch_size = 1, epochs=epochs)
+            history = model.fit(train_x_trial['XOR'], train_y_trial['XOR'], batch_size = 1, epochs=epochs)
                   
         elif chosen_task == 2:
             task_name = 'AND_task'
-            history = model.fit(train_x_AND, train_y_AND, batch_size = 1, epochs=epochs)
+            history = model.fit(train_x_trial['AND'], train_y_trial['AND'], batch_size = 1, epochs=epochs)
         
     ##record data after training
         learning_track()
@@ -164,38 +190,22 @@ for run in range(model_runs):
         ##Choosing the reward signal based on the model        
         if tested_model == 'model_LVL2_LP_signed': 
             if len(loss_history[chosen_task]) > window_size:
-                loss_history[chosen_task].pop(0)
-                
-                       
-            if len(loss_history[chosen_task]) == window_size:
-                half1 = np.mean(loss_history[chosen_task][-20: -10])
-                half2 = np.mean(loss_history[chosen_task][-9:])
-                
-                reward = -(half1 - half2)   #reward is the mean progress
+                loss_history[chosen_task].pop(0)    
+                      
+            half1 = np.mean(loss_history[chosen_task][-20: -10])
+            half2 = np.mean(loss_history[chosen_task][-9:])
             
-            else:
-                if len(loss_history[chosen_task]) > 1:
-                    reward = -(np.mean(np.diff(loss_history[chosen_task])))
-                    
-                else: 
-                    reward = 0
+            reward = (half1 - half2)   #reward is the mean progress
+
 
         elif tested_model == 'model_LVL2_LP_unsigned':
             if len(loss_history[chosen_task]) > window_size:
                 loss_history[chosen_task].pop(0)
                        
-            if len(loss_history[chosen_task]) == window_size:
-                half1 = np.mean(loss_history[chosen_task][-20: -10])
-                half2 = np.mean(loss_history[chosen_task][-9:])
-                
-                reward = abs(half1 - half2)  #reward is the mean progress
-
-            else: 
-                if len(loss_history[chosen_task]) > 1:
-                    reward = abs(np.mean(np.diff(loss_history[chosen_task])))
-                    
-                else: 
-                    reward = 0                    
+            half1 = np.mean(loss_history[chosen_task][-20: -10])
+            half2 = np.mean(loss_history[chosen_task][-9:])
+            
+            reward = abs(half1 - half2)   #reward is the absolute mean progress                    
                 
         elif tested_model == 'model_LVL2_acc': 
             reward = -(trial_loss) #reward is accuracy
@@ -211,14 +221,14 @@ for run in range(model_runs):
         
     ##GATHER DATA
     ##test the models
-    test_results_AND = model.evaluate(test_x_AND, train_y_AND)
-    test_predictions_AND = model.predict(test_x_AND)
+    test_results_AND = model.evaluate(train_x_trial['AND'], train_y_trial['AND'])
+    test_predictions_AND = model.predict(train_x_trial['AND'])
 
-    test_results_XOR = model.evaluate(test_x_XOR, train_y_XOR)
-    test_predictions_XOR = model.predict(test_x_XOR)
+    test_results_XOR = model.evaluate(train_x_trial['XOR'], train_y_trial['XOR'])
+    test_predictions_XOR = model.predict(train_x_trial['XOR'])
 
-    test_results_RM = model.evaluate(test_x_RM, train_y_RM)
-    test_predictions_RM = model.predict(test_x_RM)
+    test_results_RM = model.evaluate(train_x_trial['RM'], train_y_trial['RM'])
+    test_predictions_RM = model.predict(train_x_trial['RM'])
     
     ##summary
     print(["Weights:", w])
