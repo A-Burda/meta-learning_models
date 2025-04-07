@@ -4,74 +4,58 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt 
-from keras.models import Sequential
-from keras.layers.core import Dense
+import keras 
 
 
 #PARAMETERS
-tested_model = 'model_LVL2_acc' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned', 'model_LVL2_novelty'
+tested_model = 'model_LVL2_LP_signed' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned', 'model_LVL2_novelty'
 n_trials = 900
-model_runs = 15
+model_runs = 25
 epochs = 1
-alpha = 0.1 #learning rate
-beta = 1.5 #reverse temperature
+alpha = 0.3 #learning rate
+beta = 1 #reverse temperature
 w = np.array([1/3, 1/3, 1/3]) #initialise weights
-window_size = 60
+window_size = int(60)
+half_window = int(window_size/2)
 
 #X DATA
-##set data
-x_inputs =  np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-context_vector = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]])
-
-##apply data into a shaped array
-def apply_x_parameters(flip_index, context_index):
-    
-    applied_x_parameters = np.concatenate([
-        x_inputs,
-        np.full((4, 1), flip_index),
-        np.tile(context_vector[context_index], (4, 1))
-    ], axis=1)
-    
-    return applied_x_parameters
-
 ##initialise the lists for all tasks
 train_x = {}
 test_x = {}
 
-##task parameters
-task_x_parameters = {
-    'AND': (1, 2),  
-    'RM': (0, 0),
-    0: (0, 1), #base XOR
-    1: (1, 1), #flipped XOR
-    #XOR choice (base/flipped) will be determined every trial through get_flip()
+##set data
+x_inputs =  np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+context_vectors = {
+    'AND': np.array([1, 0, 0]),
+    'XOR': np.array([0, 1, 0]),
+    'RM': np.array([0, 0, 1])
 }
 
+##apply data into a shaped array
+def apply_x_parameters(context_vectors):
+    
+    applied_x_parameters = np.concatenate([
+        x_inputs,
+        np.tile(context_vectors, (4, 1))
+    ], axis=1)
+    
+    return applied_x_parameters
+
 ##apply the data to each task's specific parameters
-for task, (flip, context) in task_x_parameters.items():
-    train_x[task] = apply_x_parameters(flip, context)
-    #note: the flip only really matters for XOR, it's constant for RM and AND   
+for task, context in context_vectors.items():
+    train_x[task] = apply_x_parameters(context)  
     
 #Y DATA
 ##RM (is random)
 def RM_y_data(): 
     return np.random.randint(0, 2, size=(4, 1))
 
-##XOR (is it flipped?)
+##XOR and AND
 train_y = {
     'AND': np.array([0, 0, 0, 1]).reshape(4, 1),
-    0: np.array([0, 1, 1, 0]).reshape(4, 1), #basic
-    1: np.array([1, 0, 0, 1]).reshape(4, 1) #flipped
-    #XOR choice (base/flipped) is determined every trial through get_flip()
+    'XOR': np.array([0, 1, 1, 0]).reshape(4, 1), 
     #RM will be randomised every trial through RM_y_data()
     }
-
-def get_flip(): 
-    flip_status = np.random.randint(0, 2)
-    train_y['XOR'] = train_y[flip_status]
-    train_x['XOR'] = train_x[flip_status]
-    
-    return train_y['XOR'], train_x['XOR']
 
 #PICK 1 ROW PER TRIAL
 def extract_1_row(): 
@@ -122,9 +106,9 @@ for run in range(model_runs):
     loss_history = {key: [0] * window_size for key in loss_history} #fill the lists with 0's until actual values are given
     
     #MODEL STRUCTURE
-    model = Sequential([
-        Dense(8, activation='tanh', input_shape=(6,)),
-        Dense(1, activation='sigmoid')
+    model = keras.models.Sequential([
+        keras.layers.core.Dense(8, activation='tanh', input_shape=(5,)),
+        keras.layers.core.Dense(1, activation='sigmoid')
         ])
 
     model.compile(
@@ -145,9 +129,8 @@ for run in range(model_runs):
          
         #changeable data
         train_y['RM'] = RM_y_data()
-        train_y['XOR'], train_x['XOR'] = get_flip() 
         
-        #extract 1 row for all tasks (to be changed to one row for the chosen task)
+        #extract 1 row for all tasks to train and test
         train_x_trial, train_y_trial = extract_1_row()
         
         #make a choice (softmax function)
@@ -161,16 +144,16 @@ for run in range(model_runs):
         
     ##set the context
         if chosen_task == 0:
-            task_name = 'RM_task'
-            history = model.fit(train_x_trial['RM'], train_y_trial['RM'], batch_size = 1, epochs=epochs)
+            task_name = 'RM'
 
         elif chosen_task == 1: 
-            task_name = 'XOR_task'
-            history = model.fit(train_x_trial['XOR'], train_y_trial['XOR'], batch_size = 1, epochs=epochs)
+            task_name = 'XOR'
                   
         elif chosen_task == 2:
-            task_name = 'AND_task'
-            history = model.fit(train_x_trial['AND'], train_y_trial['AND'], batch_size = 1, epochs=epochs)
+            task_name = 'AND'
+         
+    ##train the model
+        history = model.fit(train_x_trial[task_name], train_y_trial[task_name], batch_size = 1, epochs=epochs)
         
     ##record data after training
         learning_track()
@@ -190,10 +173,10 @@ for run in range(model_runs):
         ##Choosing the reward signal based on the model        
         if tested_model == 'model_LVL2_LP_signed': 
             if len(loss_history[chosen_task]) > window_size:
-                loss_history[chosen_task].pop(0)    
-                      
-            half1 = np.mean(loss_history[chosen_task][-20: -10])
-            half2 = np.mean(loss_history[chosen_task][-9:])
+                loss_history[chosen_task].pop(0)  
+            
+            half1 = np.mean(loss_history[chosen_task][-window_size: -half_window])
+            half2 = np.mean(loss_history[chosen_task][-half_window+1:])
             
             reward = (half1 - half2)   #reward is the mean progress
 
@@ -202,8 +185,8 @@ for run in range(model_runs):
             if len(loss_history[chosen_task]) > window_size:
                 loss_history[chosen_task].pop(0)
                        
-            half1 = np.mean(loss_history[chosen_task][-20: -10])
-            half2 = np.mean(loss_history[chosen_task][-9:])
+            half1 = np.mean(loss_history[chosen_task][-window_size: -half_window])
+            half2 = np.mean(loss_history[chosen_task][-half_window+1:])
             
             reward = abs(half1 - half2)   #reward is the absolute mean progress                    
                 
@@ -240,7 +223,7 @@ for run in range(model_runs):
     print(f"Task name: RM, Loss: {test_results_RM[0]:.4f}, Accuracy: {test_results_RM[1]:.4f}")
     
 ##plots
-window_conv = 5
+window_conv = 10
 
 ###get mean and std
 data_fuse = data.groupby('trial')[['prob_RM', 'prob_XOR', 'prob_AND', 'acc_RM', 'acc_XOR', 'acc_AND', 'loss_RM', 'loss_XOR', 'loss_AND']].mean()
