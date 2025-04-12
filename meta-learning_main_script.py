@@ -4,15 +4,12 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-import matplotlib as mpl
-import matplotlib.pyplot as plt 
 import keras 
 
 
 #PARAMETERS
-tested_model = 'model_LVL2_LP_signed' #select from: 'model_LVL2_acc', 'model_LVL2_LP_signed', 'model_LVL2_LP_unsigned', 'model_LVL2_novelty'
-n_trials = 10
-model_runs = 1
+n_trials = 900
+model_runs = 30
 epochs = 1
 alpha = 0.3 #learning rate
 beta = 1 #reverse temperature
@@ -98,11 +95,14 @@ def initialise():
     reward_types = ['LP_signed', 'LP_unsigned', 'acc', 'novelty']
     
     weight = {
-        types: 1 for types in reward_types
-         } #for now, all weights are the same (to be changed with LVL3)
+    'LP_signed': 10,
+    'LP_unsigned': 10,
+    'acc': 1,
+    'novelty': 1
+    } #manually set for now
     
     value = {
-        a: {types: 1 for types in reward_types}
+        a: {types: 0.0 for types in reward_types}
         for a in range(3)
         }
     
@@ -210,7 +210,6 @@ for run in range(model_runs):
             }
         
         #record reward
-        print("Reward:", reward)
         for r in reward:
             data.loc[index, f"r_{r}"] = reward[r]
         
@@ -246,7 +245,7 @@ for run in range(model_runs):
     print(f"Task name: RM, Loss: {test_results_RM[0]:.4f}, Accuracy: {test_results_RM[1]:.4f}")
     
 #SAVE DATA
-'''data.to_csv('data/dataframe.csv')''' #hpc
+'''data.to_csv('data/dataframe.csv') #hpc'''
 '''data.to_csv('D:/ULB/MA2/STAGE2/code/data/dataframe.csv') #local'''
 
 #SAVE MODEL
