@@ -9,10 +9,10 @@ import keras
 
 #PARAMETERS
 window_conv = 10
-comparison = False
+comparison = True
  
 #LOAD DATA
-data_main = pd.read_csv('D:/ULB/MA2/STAGE2/code/data/dataframe.csv')
+data_main = pd.read_csv('E:/ULB/MA2/STAGE2/code/data/dataframe.csv')
 
 def fuse_data(): 
     ###get mean and std
@@ -96,9 +96,47 @@ def plot_data():
     plt.show()
     plt.close(fig)
 
-'''def model_comparison():
-    #WIP
-    data'''
+def model_comparison():    
+    #AVG: compare accuracy over time
+    '''
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.set_title("Comparison of Accuracy over Time Across Tasks for Each Model")
+    ax.plot(acc_avg, color="blue", label='our model')
+    ax.fill_between(trials, acc_avg - 1.96 * acc_std, acc_avg + 1.96 * acc_std, color='blue', alpha=0.1)
+    ax.plot(acc_avg_iid, color="grey", label='random sampling')
+    ax.fill_between(trials, acc_avg_iid - 1.96 * acc_std_iid, acc_avg_iid + 1.96 * acc_std_iid, color='grey', alpha=0.1)
+    ax.set_xlabel("trial")
+    ax.set_ylabel("accuracy")
+    ax.legend()
+    plt.show()
+    plt.close(fig)'''
+
+    #AND: compare accuracy over time
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.set_title("Comparison of Accuracy over Time for Task AND for Each Model")
+    ax.plot(acc_avg['acc_AND'], color = "blue", label = "our model")
+    ax.fill_between(trials, acc_avg['acc_AND'] - 1.96 * acc_std['acc_AND'], acc_avg['acc_AND'] + 1.96 *acc_std['acc_AND'], color='blue', alpha=0.2)
+    ax.plot(acc_avg_iid['acc_AND'], color = "grey", label = "random sampling")
+    ax.fill_between(trials, acc_avg_iid['acc_AND'] - 1.96 * acc_std_iid['acc_AND'], acc_avg_iid['acc_AND'] + 1.96 * acc_std_iid['acc_AND'], color='grey', alpha=0.2)
+    ax.set_xlabel("trial")
+    ax.set_ylabel("accuracy")
+    ax.legend()
+    plt.show()
+    plt.close(fig)
+
+
+    #XOR: compare accuracy over time
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.set_title("Comparison of Accuracy over Time for task XOR for Each Model")
+    ax.plot(acc_avg['acc_XOR'], color = 'blue', label = "our model")
+    ax.fill_between(trials, acc_avg['acc_XOR'] - 1.96 * acc_std['acc_XOR'], acc_avg['acc_XOR'] + 1.96 * acc_std['acc_XOR'], color='blue', alpha=0.2)
+    ax.plot(acc_avg_iid['acc_XOR'], color = "grey", label = "random sampling")
+    ax.fill_between(trials, acc_avg_iid['acc_XOR'] - 1.96 * acc_std_iid['acc_XOR'], acc_avg_iid['acc_XOR'] + 1.96 * acc_std_iid['acc_XOR'], color='grey', alpha=0.2)
+    ax.set_xlabel("trial")
+    ax.set_ylabel("accuracy")
+    ax.legend()
+    plt.show()
+    plt.close(fig)
 
 #RUN DATA 
 data = data_main 
@@ -106,8 +144,7 @@ trials, con_fuse, con_std, acc_avg, acc_std, loss_avg, loss_std = fuse_data()
 plot_data()
 
 if comparison: 
-    data_iid = pd.read_csv('D:/ULB/MA2/STAGE2/code/data/dataframe_iid.csv')
+    data_iid = pd.read_csv('E:/ULB/MA2/STAGE2/code/data/dataframe_iid.csv')
     data = data_iid
-    trials, con_fuse, con_std, acc_avg, acc_std, loss_avg, loss_std = fuse_data()
-    plot_data()
-    '''model_comparison()'''
+    trials, con_fuse_iid, con_std_iid, acc_avg_iid, acc_std_iid, loss_avg_iid, loss_std_iid = fuse_data()
+    model_comparison()
