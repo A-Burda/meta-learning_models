@@ -26,7 +26,7 @@ def fuse_data():
     for trial in data_fuse.index:
         
         #extract the data for the trial
-        trial_data = data_main[data_main['trial'] == trial]
+        trial_data = data[data['trial'] == trial]
         
         #calculate the percentiles and add them to the list
         for measurement in relevant_data:
