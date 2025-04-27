@@ -273,8 +273,6 @@ def complete_run(weight_task, parameters, w1, w2, w3, w4):
         test_results = learning_track(train_x_trial, train_y_trial, index, trial, data, model)    
         test_predictions = predict_model(train_x_trial, model)    
                              
-###############################################################################
-#GRID SEARCH LOOP 
     #SAVE DATA
     save_data(data, w1, w2, w3, w4)
         
