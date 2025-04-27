@@ -5,6 +5,7 @@ You may find an introduction and an in-depth description of the project in the #
 
 For the complete model script, please check out the #meta-learning_main_script file. 
 For the data analysis script, please consult the #model_data_analysis file.
+For the grid search script, please see the #grid_search_criteria_weights file.
 
 Additional files:
 The #supervised_learning_models file contains only the models for student learning (level 1).
